@@ -7,7 +7,9 @@ class Species:
     -------
 
     T          = Temperature in eV
+    dTdpsi     = Derivative of T w.r.t poloidal flux psi
     density    = Density in m^-3
+    dndpsi     = Derivative of density w.r.t poloidal flux psi
     atomicMass = Mass in atomic mass units (proton = 1)
     unitCharge = Charge in elementary units (proton = 1, electron = -1)
     mass       = mass in kg
@@ -15,10 +17,12 @@ class Species:
     
     vth        = Thermal speed (m/s)
     """
-    def __init__(self, T, n, AA=None, ZZ=1):
+    def __init__(self, T, n, AA=None, ZZ=1, dTdpsi=0.0, dndpsi=0.0):
         # Set basic quantities
         self.T = T
+        self.dTdpsi = dTdpsi
         self.density = n
+        self.dndpsi = dndpsi
         if AA == None:
             self.atomicMass = 1./1860.  # Electron mass in atomic mass units
             self.unitCharge = -1      # Charge in elementary charge units
@@ -31,7 +35,7 @@ class Species:
         self.charge = self.unitCharge * 1.602e-19
         self.Vth    = sqrt(2.*1.602e-19 * self.T / self.mass)
 
-def genSpecies(T, n, AA=None, ZZ=1):
+def genSpecies(T, n, AA=None, ZZ=1, dTdpsi=0.0, dndpsi=0.0):
     """Create a list of species classes
     
     Inputs
@@ -41,6 +45,9 @@ def genSpecies(T, n, AA=None, ZZ=1):
     n  =  density   (m^-3, scalar or array)
     AA  = atomic number (scalar or array). None means electron
     ZZ  = charge (scalar or array)
+    dTdpsi = Temperature derivative w.r.t poloidal flux psi
+    dndpsi = density derivative w.r.t poloidal flux psi
+    
     """
     
     # Get number of species
@@ -55,6 +62,10 @@ def genSpecies(T, n, AA=None, ZZ=1):
         raise ValueError("Keyword AA must have either 1 or "+str(ns)+" elements")
     if (size(ZZ) != 1) and (size(ZZ) != ns):
         raise ValueError("Keyword AA must have either 1 or "+str(ns)+" elements")
+    if (size(dTdpsi) != 1) and (size(dTdpsi) != ns):
+        raise ValueError("Keyword dTdpsi must have either 1 or "+str(ns)+" elements")
+    if (size(dndpsi) != 1) and (size(dndpsi) != ns):
+        raise ValueError("Keyword dndpsi must have either 1 or "+str(ns)+" elements")
     
     s = []
     for i in range(ns):
@@ -62,5 +73,7 @@ def genSpecies(T, n, AA=None, ZZ=1):
         ni = n[i] if size(n) != 1 else n
         Ai = AA[i] if size(AA) != 1 else AA
         Zi = ZZ[i] if size(ZZ) != 1 else ZZ
-        s.append(Species(Ti, ni, Ai, Zi))
+        dTi = dTdpsi[i] if size(dTdpsi) != 1 else dTdpsi
+        dni = dndpsi[i] if size(dndpsi) != 1 else dndpsi
+        s.append(Species(Ti, ni, AA=Ai, ZZ=Zi, dTdpsi=dTi, dndpsi=dni))
     return s
