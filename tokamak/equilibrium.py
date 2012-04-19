@@ -1,29 +1,102 @@
+#
+# 
+# Requires the NumPy library
+#
+
+from numpy import size, copy, sqrt, linspace, pi, zeros
+from utils import integrate, interpPeriodic
 
 class FluxSurface:
     """ Describes a single flux surface 
     and provides some useful operations on it
     
-    Data members
-    ------------
+    Public data members
+    -------------------
     
     f    = R * Bt
     
+    Public functions
+    ----------------
+    
+    These are created by __init__
+    
+    R(theta)    Major radius in meters
+    Z(theta)    Height in meters
+    B(theta)    Magnetic field in Teslas
+    Bp(theta)   Poloidal magnetic field
+    Bt(theta)   Toroidal magnetic field
+    
+    Private data members
+    --------------------
+    
+    Implementation details which may change
+    
+    _R, _Z    = arrays of (R,Z) coordinates  [m]
+    
+    _Bp       = Poloidal field [T]
+    _Bt       = Toroidal field [T]
+    _B        = Field magnitude [T]
+    
+    _ntheta   = Number of points in the arrays
+    _theta    = array of theta values on each point
+    
     """
 
-    def __init__(self, f):
+    def __init__(self, f, r, z, Bp, theta=None):
+        """ Initialise
+        """
         self.f = f
-        self._theta = [0,1] # Theta values
-        return
+        
+        # Check sizes of input arrays
+        self._ntheta = size(r)
+        if (size(z) != self._ntheta) or (size(Bp) != self._ntheta):
+            raise ValueError("r, z, and Bp arrays must have the same size")
+        
+        # Copy input arrays to prevent modification from outside
+        self._R = copy(r)
+        self._Z = copy(z)
+        self._Bp = copy(Bp)
+        
+        # Calculate other components of B
+        self._Bt = f / r
+        self._B   = sqrt(self._Bt**2 + self._Bp**2)
+        
+        if theta == None:
+            # Define theta to be equally spaced (arbitrary) in range ]0,2pi]
+            self._theta = linspace(0.0, 2.*pi, num=self._ntheta, endpoint=False)
+        else:
+            if size(theta) != self._ntheta:
+                raise ValueError("theta must have the same number of points as r,z and Bp")
+            self._theta = theta
+        
+        self._dldt = zeros(self._ntheta)
+        dtheta = 2.*pi / self._ntheta
+        for i in range(self._ntheta):
+            drdt = (r[ (i+1) % self._ntheta ] - r[ (i-1) % self._ntheta ]) / (2.*dtheta)
+            dzdt = (z[ (i+1) % self._ntheta ] - z[ (i-1) % self._ntheta ]) / (2.*dtheta)
+            self._dldt[i] = sqrt(drdt**2 + dzdt**2)
 
-    def interpolate(self, var, theta):
-        """ Interpolate a variable at a given angle
+        # Create functions for external access to values
+        self.R = interpPeriodic(self._theta, self._R, copy=False)
+        self.Z = interpPeriodic(self._theta, self._Z, copy=False)
+        self.B = interpPeriodic(self._theta, self._B, copy=False)
+        self.Bp = interpPeriodic(self._theta, self._Bp, copy=False)
+        self.Bt = interpPeriodic(self._theta, self._Bt, copy=False)
+        
+        self._dldtheta = interpPeriodic(self._theta, self._dldt, copy=False)
+
+    def max(self, var):
+        """ Maximum value of a variable over theta 
+        
+        Parameters
+        ----------
+        
+        var(theta) is a callable object
         
         """
-        theta = theta % (2.*pi)  # Get between 0 and 2pi
-        
-        # Find if a close to a theta grid point
-        
-        
+        # Only sample at the grid points
+        return max([var(theta) for theta in self._theta])
+    
     def integral(self, var):
         """ Flux surface integral
         
@@ -32,7 +105,10 @@ class FluxSurface:
         where dl is the poloidal arc length
         """
         
-    def deriv(self, var):
+        # Integrate  ( var * dl/dtheta ) dtheta
+        return integrate( lambda x: var(x) * self._dldtheta(x), 0, 2*pi )
+        
+    def deriv(self, var, dtheta = 0.01):
         """ Flux surface derivative
         
         result = d/dl(var)
@@ -43,21 +119,15 @@ class FluxSurface:
         
         """
         
-        # Find closest theta below this one
-        t0 = theta - 0.1
-        # Closest theta above this
-        t1 = theta + 0.1
-        
-        # Arc length between them
-        dl = 0.1 ### REPLACE
-        
-        # Define a 'closure' function to return
+        # Define a function which returns derivative
+        # of var at theta, using central differencing
         def dvardl(theta):
-            return ( var(t1) - var(t0) ) / dl
+            dvdtheta = (var(theta + dtheta) - var(theta - dtheta))/(2.*dtheta)
+            return dvdtheta / self._dldtheta(theta)
         
+        # Return this new function 
         return dvardl
-            
-
+    
     def average(self, var):
         """ Flux-surface average a variable
         
@@ -66,43 +136,12 @@ class FluxSurface:
         
         """
         
-        return integral(lambda x: var(x) / Bp(x)) / integral(lambda x: 1./Bp(x))
-    
-    def R(self, theta):
-        """ Major radius in meters as function of angle
-        """
-        return interpolate(self._R, theta)
-
-    def Z(self, theta):
-        """ Height in meters as function of angle
-        around flux surface
-        """
-        return interpolate(self._Z, theta)
+        return self.integral(lambda x: var(x) / self.Bp(x)) / self.integral(lambda x: 1./self.Bp(x))
         
-    def B(self, theta):
-        """ B field as function of angle
-        """
-        return interpolate(self._B, theta)
-        
-    def Bp(self, theta):
-        """ Poloidal field as function of angle
-        """
-        return interpolate(self._Bp, theta)
-    
-    def Bt(self, theta):
-        """ Toroidal field as function of angle
-        """
-        return f / R(theta)
-    
     ###### Useful functions
     
     def Bsqav(self):
         """ Calculate < B^2 > 
         """
-        return average(lambda x: B(x)**2)
-
+        return self.average(lambda x: self.B(x)**2)
     
-    def circumference(self):
-        """ Circumference of the flux surface in meters
-        """
-        

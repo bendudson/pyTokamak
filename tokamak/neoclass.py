@@ -11,38 +11,14 @@ from species import Species, genSpecies
 from numpy import zeros, sqrt, pi, linalg, size
 from math import exp
 
-try:
-    # erf function available from Python 3.2
-    from math import erf
-except ImportError:
-    # Try SciPy
-    try:
-        from scipy.special import erf
-    except ImportError:
-        # No erf function, so define
-        def erf(x):
-            # save the sign of x
-            sign = 1 if x >= 0 else -1
-            x = abs(x)
-
-            # constants
-            a1 =  0.254829592
-            a2 = -0.284496736
-            a3 =  1.421413741
-            a4 = -1.453152027
-            a5 =  1.061405429
-            p  =  0.3275911
-
-            # A&S formula 7.1.26
-            t = 1.0/(1.0 + p*x)
-            y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*exp(-x*x)
-            return sign*y # erf(-x) = -erf(x)
+from utils import erf, integrate
 
 def collisionTime(si, sj):
     """ Collision time between two species
     
-    Inputs
-    ======
+    Parameters
+    ----------
+    
     si and sj should have the following members:
 
     s.charge   = charge in Coulombs
@@ -50,8 +26,8 @@ def collisionTime(si, sj):
     s.density  = density in m^-3
     s.Vth      = thermal speed in m/s
     
-    Outputs
-    =======
+    Returns
+    -------
     
     Returns collision time in seconds
     
@@ -69,8 +45,8 @@ def collisionTime(si, sj):
 def collisionTimes(spec):
     """Calculate collision time for a list of species
 
-    Inputs
-    ======
+    Parameters
+    ----------
 
     spec = a list of Species classes, assumed to have the following members:
         .charge   = charge in Coulombs
@@ -78,8 +54,8 @@ def collisionTimes(spec):
         .density  = density in m^-3
         .Vth      = thermal speed in m/s
 
-    Outputs
-    =======
+    Returns
+    -------
     
     Returns collision times in seconds
  
@@ -88,7 +64,7 @@ def collisionTimes(spec):
     the collision time for species i colliding with species j
     
     Example
-    =======
+    -------
 
     For single ion species Deuterium plasma with Ti=Te, could use
     
@@ -118,8 +94,8 @@ def collisionTimes(spec):
 def friction(spec):
     """ Calculate friction coefficients
     
-    Inputs
-    ------
+    Parameters
+    ----------
     
     spec  = list of Species with members:
         .charge   = charge in Coulombs
@@ -127,8 +103,8 @@ def friction(spec):
         .density  = density in m^-3
         .Vth      = thermal speed in m/s
     
-    Output
-    ------
+    Returns
+    -------
     
     Returns a class with data members
     
@@ -213,41 +189,108 @@ def friction(spec):
     
     return result
 
-def chandrasakhar(y):
-    """ Chandrasakhar function
+def chandrasekhar(y):
+    """ Chandrasekhar function for dynamical friction
     
     """
-    phi = erf(y)
     
-    fac = 2./sqrt(pi)
-    if y < 1e-3:
-        gg = fac*y/3.
-    else:
-        gg = (phi - fac*y*exp(-y*y)) / (2.*y*y)
-    return gg
+    if abs(y) < 1e-3:
+        return  (2./sqrt(pi)) * y/3.
+    
+    return (erf(y) - (2./sqrt(pi))*y*exp(-y*y)) / (2.*y*y)
+   
 
 def phig(y):
     """
     Modified error function
     
-    erf(y) - chandrasakhar(y)
+    erf(y) - chandrasekhar(y)
     
     """
-    return erf(y) - chandrasakhar(y)
+    return erf(y) - chandrasekhar(y)
 
 
 def trappedFraction(surf):
-    return 0.1
-
+    """ Calculate the trapped particle fraction
+    
+    Parameters
+    ----------
+    
+    surf  = Flux surface object
+        .max( f(theta) )          Maximum value over theta
+        .B(theta)                 Magnetic field strength [T]
+        .Bsqav()                  < B^2 >
+        .average( func(theta) )   Flux surface average
+    """
+    try:
+        # See if surface already has a trapped fraction value
+        ft = surf.trappedFraction
+        # If so, return it
+        return ft
+    except:
+        pass # Just catch the error
+    
+    bigint =  integrate( lambda rla: 
+                         rla / surf.average( lambda x: sqrt(1. - rla*surf.B(x)) / surf.Bp(x) ),
+                         0.0,   # Lower limit
+                         1./surf.max(surf.B))  # Upper limit
+    
+    # Set a variable in surface object so we don't have to calculate all that again
+    surf.trappedFraction = 1. - 3.*surf.Bsqav() * bigint / 4.
+    
+    # Sanity check the value
+    if (surf.trappedFraction < 0.) or (surf.trappedFraction > 1.):
+        raise ValueError("Trapped fraction ft must be between 0 and 1")
+    
+    return surf.trappedFraction
+    
 def connectionLength(surf):
-    return 1.
+    """ Flux surface connection length, the 
+    distance along a field-line to complete one poloidal turn.
+    In the limit of large aspect-ratio, this becomes qR
+    
+    Calculates poloidal loop integral
+    
+    cl = integral  B / Bp  dl
+    
+    Parameters
+    ----------
+    
+    surf   = Flux surface class
+        .B(theta)    Total field [T]
+        .Bp(theta)   Poloidal field [T]
+        .integral( func(theta) )   Poloidal integral
+    
+    An additional field
+        .connectionLength
+
+    is checked and returned if it exists. Once connection
+    length is calculated, this field is set. This means
+    that connectionLength is only calculated once per surf object
+    
+    Returns
+    -------
+    
+    Connection length in meters
+    
+    """
+    try:
+         # See if surface already has a value
+        conl = surf.connectionLength
+        return conl
+    except:
+        pass
+    
+    surf.connectionLength = surf.integral(lambda x: surf.B(x) / surf.Bp(x)) / (2.*pi)
+    
+    return surf.connectionLength
 
 def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
     """
     Neoclassical viscosity calculation
     
-    Inputs
-    ======
+    Parameters
+    ----------
 
     surf  = Flux surface object (see equilibrium.py)
         .aspectRatio    = aspect ratio a/R
@@ -260,7 +303,7 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
     spec  = list of Species
     
     Optional inputs
-    ===============
+    ---------------
     
     vmax (=5.)  Maximum velocity to consider (units of vth)
     nv (=500)   Number of velocity grid points
@@ -308,7 +351,7 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
                 vdij = phig(y) / (coltau(i,j)*vv**3)
                 vd[i,n] += vdij
                 
-                vtij = (((erf(y) - 3.*chandrasakhar(y)) / vv**3) + 4.*(si.T/sj.T + (si.Vth/sj.Vth)**2)*chandrasakhar(y)/vv)/coltau(i,j)
+                vtij = (((erf(y) - 3.*chandrasekhar(y)) / vv**3) + 4.*(si.T/sj.T + (si.Vth/sj.Vth)**2)*chandrasekhar(y)/vv)/coltau(i,j)
                 vt[i,n] += vtij
             
             vd[i,n] *= 3.*sqrt(pi)/4.
@@ -347,15 +390,15 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
         
     return vis
 
-def bootstrapHS(surf, spec, ft):
+def bootstrapHS(surf, spec):
     """ Bootstrap current calculation using Hirshman-Sigmar formalism
     from Nucl. Fusion 21 (1981) 1079
     
-    Inputs
-    ======
+    Parameters
+    ----------
     
     surf = flux surface
-        .f   = R*Bt
+        .f         = R*Bt
         .Bsqav()   = <B^2> flux-surface average
     
     spec = List of species objects
@@ -363,13 +406,14 @@ def bootstrapHS(surf, spec, ft):
         .dTdpsi  = Derivative of T w.r.t poloidal flux
         .density = Density in m^-3
         .dndpsi  = Derivative of density w.r.t poloidal flux
-        
-    ft   = Trapped fraction
     
+    Returns
+    -------
+    
+    Flux-surface average parallel bootstrap current < Jbs . B >
+    (scalar)
+
     """
-    
-    if (ft < 0.) or (ft > 1.):
-        raise ValueError("Trapped fraction ft must be between 0 and 1")
     
     # Calculate viscosity components
     vis = viscosity(surf, spec)
