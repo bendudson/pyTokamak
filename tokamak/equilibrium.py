@@ -145,3 +145,31 @@ class FluxSurface:
         """
         return self.average(lambda x: self.B(x)**2)
     
+class Equilibrium:
+    """ Represents an axisymmetric tokamak equilibrium 
+    
+    """
+    def __init__(self):
+        """ Something"""
+        pass
+    
+    def getFluxSurface(psi):
+        """ Return a FluxSurface object at a given psi """
+        pass
+    
+    def surfaces(psimin=0.0, psimax=1.0, n=None):
+        """ Iterate over flux surfaces 
+        
+        Keywords
+        --------
+        
+        psimin (0.0)   = Minimum normalised poloidal flux. 0 = core
+        psimax (1.0)   = Maximum normalised poloidal flux. 1 = edge
+        
+        Example
+        -------
+        
+        for s in eq.surfaces():
+           <code>
+        """
+        pass
