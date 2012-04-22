@@ -1,10 +1,28 @@
 
 from utils import file_tokens
 
-def read(filename):
+def read(infile):
     """ Reads an ELITE .eqin format file
+    
+    Parameters
+    ----------
+    
+    infile = Input file. Can either be a file-like object,
+             or a string. If a string, then treated as a file name
+             and opened.
+    
+    Returns
+    -------
+    
+    
     """
-    f = open(infile)
+    
+    if isinstance(infile, basestring):
+        # If the input is a string, treat as file name
+        with open(infile) as f: # Ensure file is closed
+            return read(f) # Call again with file object
+    
+    # Otherwise, treat as file object
     
     desc = f.readline()
     if not desc:

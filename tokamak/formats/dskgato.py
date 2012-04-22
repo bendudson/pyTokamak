@@ -124,3 +124,7 @@ def read(filename):
     # Calculate toroidal field
     Btor = fnorm / xnorm
     
+    #########################################
+    # Create a dictionary of values to return
+    
+    

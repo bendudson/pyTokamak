@@ -149,12 +149,31 @@ class Equilibrium:
     """ Represents an axisymmetric tokamak equilibrium 
     
     """
-    def __init__(self):
-        """ Something"""
+    def __init__(self, fix=None):
+        """ Construct an Equilibrium object 
+        
+        Parameters
+        ----------
+        
+        If no inputs are given, an empty equilibrium is created
+        which can be added to afterwards
+        
+        fix = Dictionary of values describing fixed-boundary solution
+              on flux surfaces. Assumed to contain the following keys:
+              
+              
+        """
+        
+        
+        
         pass
     
     def getFluxSurface(psi):
-        """ Return a FluxSurface object at a given psi """
+        """ Return a FluxSurface object at a given psi 
+        
+        Will be created by interpolation if needed
+        
+        """
         pass
     
     def surfaces(psimin=0.0, psimax=1.0, n=None):
