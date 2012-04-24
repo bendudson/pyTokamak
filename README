@@ -3,5 +3,31 @@ Tokamak utilities in Python
 
 B.Dudson, University of York
 
-Definitely a work in progress. Very little functional code here yet
+Routines for reading tokamak equilibria, calculating flux-surface
+quantites such as safety factor, collision frequencies, and trapped
+particle fraction. Neoclassical viscosities and Bootstrap current
+calculation using Hirshman-Sigmar formalism
 
+
+tokamak.equilibrium        Defines classes FluxSurface and Equilibrium
+                           for iterating over and performing calculations
+                           on flux surfaces
+
+tokamak.neoclass           Neoclassical theory calculations
+
+tokamak.formats.dskgato    Reads DSKGATO 't' files
+tokamak.formats.elite      Reads ELITE .inp files
+
+
+Requirements
+============
+
+NumPy
+
+If SciPy is available, then this is used for the erf and integrate.quad functions.
+Otherwise fall-back implementations are used
+
+Examples
+========
+
+See the examples_xx.py files

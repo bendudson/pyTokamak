@@ -1,7 +1,7 @@
 
 from utils import file_tokens
 
-def read(infile):
+def read(f):
     """ Reads an ELITE .eqin format file
     
     Parameters
@@ -14,13 +14,39 @@ def read(infile):
     Returns
     -------
     
+    A dictionary with the following keys:
+
+    npsi                Number of points in psi
+    npol                Number of poloidal points
+
+    psi      [npsi]     psi values
+    f(psi)   [npsi]     = R * Bt
+    p        [npsi]     Pressure
+
+    R        [npsi, npol]  Major radius [m]
+    Z        [npsi, npol]  Height [m]
+
+    Bp       [npsi, npol]  Poloidal magnetic field [T]
+    Bt       [npsi, npol]  Toroidal magnetic field [T]
+
+
+    may contain the following additional keys
     
+    q        [npsi]    Safety factor
+
+    pprime   [npsi]    Pressure gradient dP/dpsi
+    ffprime  [npsi]    f * df/dpsi
+    
+    ne       [npsi]    Density
+    Te       [npsi]    Electron temperature [eV]
+    Ti       [npsi]    Ion temperature [eV]
+
     """
     
-    if isinstance(infile, basestring):
+    if isinstance(f, basestring):
         # If the input is a string, treat as file name
-        with open(infile) as f: # Ensure file is closed
-            return read(f) # Call again with file object
+        with open(f) as fh: # Ensure file is closed
+            return read(fh) # Call again with file object
     
     # Otherwise, treat as file object
     
@@ -41,6 +67,9 @@ def read(infile):
     
     # Result will be a dictionary of variables
     var=dict()
+    
+    var['npsi'] = npsi
+    var['npol'] = npol
     
     while True:
         try:

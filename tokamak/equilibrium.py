@@ -145,6 +145,10 @@ class FluxSurface:
         """
         return self.average(lambda x: self.B(x)**2)
     
+
+from copy import deepcopy
+from numpy import searchsorted
+
 class Equilibrium:
     """ Represents an axisymmetric tokamak equilibrium 
     
@@ -161,22 +165,78 @@ class Equilibrium:
         fix = Dictionary of values describing fixed-boundary solution
               on flux surfaces. Assumed to contain the following keys:
               
-              
+            'npsi'   Number of points in poloidal flux psi
+            'npol'   Number of poloidal points
+            
+            'psi'    Poloidal flux
         """
         
+        if fix != None:
+            # Check that fix has the required keys
+            required = ['npsi', 'npol', 'psi', 'f(psi)', 'R', 'Z', 'Bp']
+            
+            for r in required:
+                if not fix.has_key(r):
+                    raise ValueError("Missing key: " + r)
+            
+            if not fix.has_key("psinorm"):
+                # Add normalised psi, assuming core to edge
+                psi = fix['psi']
+                fix['psinorm'] = (psi - psi[0]) / (psi[-1] - psi[0])
+
+            # Make a deep copy of the data so it can't be modified afterwards
+            # in unpredictable ways
+            self.fix = deepcopy(fix);
+        else:
+            self.fix = None
         
-        
-        pass
-    
-    def getFluxSurface(psi):
+    def getFluxSurface(self, psi):
         """ Return a FluxSurface object at a given psi 
         
         Will be created by interpolation if needed
         
+        Paramaters
+        ----------
+        
+        psi     =  Normalised poloidal flux
+        
         """
-        pass
+        
+        if self.fix != None:
+            # Find the psi index this value comes before
+            ind = searchsorted(self.fix['psinorm'], psi)
+            psiarr = self.fix['psinorm']
+            
+            if (ind == 0) or (ind == self.fix['npsi']):
+                raise ValueError("normalised psi value %e out of range %e to %e" % (psi, psiarr[0], psiarr[-1]))
+            
+            
+            # Indices
+            im = ind-1
+            ip = ind
+            
+            # Weights for interpolation
+            wp = (psi - psiarr[im]) / (psiarr[ip] - psiarr[im])
+            wm = 1. - wp
+            
+            # Interpolate
+            def interp1d(var):
+                return wp*var[ip] + wm*var[im]
+            def interp2d(var):
+                return wp*var[ip,:] + wm*var[im,:]
+            
+            f = interp1d(self.fix['f(psi)'])
+            R = interp2d(self.fix['R'])
+            Z = interp2d(self.fix['Z'])
+            Bp = interp2d(self.fix['Bp'])
+            
+            return FluxSurface(f, R, Z, Bp)
+        
+        # No data
+        return None
     
-    def surfaces(psimin=0.0, psimax=1.0, n=None):
+    
+    def surfaces(self, psimin=0.0, psimax=1.0, n=None):
         """ Iterate over flux surfaces 
         
         Keywords
@@ -191,4 +251,23 @@ class Equilibrium:
         for s in eq.surfaces():
            <code>
         """
-        pass
+        
+        if self.fix != None:
+            # Got flux-surface data
+            
+            ind0 = searchsorted(self.fix['psinorm'], psimin)
+            ind1 = searchsorted(self.fix['psinorm'], psimax)
+
+            # Create a generator which will iterate over surfaces
+            def surfgen():
+                for i in range(ind0, ind1):
+                    f = (self.fix['f(psi)'])[i]
+                    R = (self.fix['R'])[i,:]
+                    Z = (self.fix['Z'])[i,:]
+                    Bp = (self.fix['Bp'])[i,:]
+                    yield FluxSurface(f, R, Z, Bp)
+            
+            return surfgen()
+        
+        # No data
+        return None

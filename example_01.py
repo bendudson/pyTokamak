@@ -2,8 +2,8 @@
 # Some tests of the equilibrium and neoclass routines
 # 
 
-from equilibrium import FluxSurface
-import neoclass
+from tokamak.equilibrium import FluxSurface
+from tokamak import neoclass
 
 from numpy import linspace, pi, zeros, sin, cos, sqrt
 
