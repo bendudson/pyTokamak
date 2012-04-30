@@ -65,6 +65,24 @@ except ImportError:
         return (h/3)*s
     #print("Using Simpson's rule for integration. Install SciPy for better method")
 
+try:
+    import scipy.interp1d
+except:
+    # Define interpolation functor using NumPy routine
+    from numpy import interp
+    class interp1d:
+        """ 1-D interpolation using NumPy's interp function
+        """
+        def __init__(self, x, y, copy=True):
+            if len(x) != len(y):
+                raise ValueError("Length of x and y must be equal")
+            # Store x & y, either just references, or a copy of the data
+            self._xp = array(x, copy=copy)
+            self._yp = array(y, copy=copy)
+        
+        def __call__(self, x):
+           return interp(x, _xp, _yp)
+
 
 from numpy import pi, copy, array, searchsorted, size, where
 

@@ -152,6 +152,14 @@ from numpy import searchsorted
 class Equilibrium:
     """ Represents an axisymmetric tokamak equilibrium 
     
+    
+    Public functions 
+    ----------------
+    
+    pressure(psi)    Pressure [Pa]
+    dens(psi)        Density [m^-3]
+    temp(psi)        Temperature [eV]
+    
     """
     def __init__(self, fix=None):
         """ Construct an Equilibrium object 
@@ -190,6 +198,112 @@ class Equilibrium:
         else:
             self.fix = None
         
+    def setDensity(self, dens, psi=None):
+        """ Sets the density profile
+        
+        Parameters
+        ----------
+        
+        dens - Density in m^-3
+               Can be:
+
+               1. A function taking normalised psi and returning density
+
+                  ne = dens(psinorm)
+
+               2. An array of values on psi grid (uniform between 0 and 1 if not)
+               
+               3. A constant
+
+        psi  - Optional array of normalised psi values
+        
+        """
+        
+        # Check if we can call it to get a value
+        try:
+            val = dens(0.5);
+            densfunc = dens; # Use this new function
+        except:
+            # Not a function type
+            # Check if it's an array type
+            try:
+                val = dens[0]
+                p = psi
+                if p == None:
+                    p = linspace(0.0, 1.0, num=len(dens), endpoint=False)
+                densfunc = interp1d(p, dens)
+            except:
+                # Should be a constant
+                val = dens
+                densfunc = lambda x: dens
+                
+        # val should now contain a number
+        if len(val) > 1:
+            raise ValueError("dens argument doesn't yield a single value")
+        try:
+            test = 2.*val + val*val        
+        except:
+            raise ValueError("dens argument must give a numerical value")
+        
+        # Checks passed, so can set the density function
+        self.dens = densfunc
+
+        # Set temperature function to use the density, assuming Ti = Te
+        self.temp = lambda x: self.pressure(x) / (2. * 1.602e-19 * self.dens(x) )
+        
+    def setTemperature(self, T, psi=None):
+        """ Sets the temperature profile
+        
+        Parameters
+        ----------
+        
+        T    - temperature in eV
+               Can be:
+
+               1. A function taking normalised psi and returning density
+
+                  ne = T(psinorm)
+
+               2. An array of values on psi grid (uniform between 0 and 1 if not)
+               
+               3. A constant
+
+        psi  - Optional array of normalised psi values
+        
+        """
+        
+        # Check if we can call it to get a value
+        try:
+            val = T(0.5);
+            Tfunc = T; # Use this new function
+        except:
+            # Not a function type
+            # Check if it's an array type
+            try:
+                val = T[0]
+                p = psi
+                if p == None:
+                    p = linspace(0.0, 1.0, num=len(T), endpoint=False)
+                Tfunc = interp1d(p, T)
+            except:
+                # Should be a constant
+                val = T
+                Tfunc = lambda x: T
+                
+        # val should now contain a number
+        if len(val) > 1:
+            raise ValueError("T argument doesn't yield a single value")
+        try:
+            test = 2.*val + val*val
+        except:
+            raise ValueError("T argument must give a numerical value")
+        
+        # Checks passed, so can set the density function
+        self.temp = Tfunc
+
+        # Set density function to use the temperature
+        self.dens = lambda x: self.pressure(x) / (2. * 1.602e-19 * self.temp(x) )
+
     def getFluxSurface(self, psi):
         """ Return a FluxSurface object at a given psi 
         
@@ -220,15 +334,15 @@ class Equilibrium:
             wm = 1. - wp
             
             # Interpolate
-            def interp1d(var):
+            def inter1d(var):
                 return wp*var[ip] + wm*var[im]
-            def interp2d(var):
+            def inter2d(var):
                 return wp*var[ip,:] + wm*var[im,:]
             
-            f = interp1d(self.fix['f(psi)'])
-            R = interp2d(self.fix['R'])
-            Z = interp2d(self.fix['Z'])
-            Bp = interp2d(self.fix['Bp'])
+            f = inter1d(self.fix['f(psi)'])
+            R = inter2d(self.fix['R'])
+            Z = inter2d(self.fix['Z'])
+            Bp = inter2d(self.fix['Bp'])
             
             return FluxSurface(f, R, Z, Bp)
         
