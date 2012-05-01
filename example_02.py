@@ -17,20 +17,21 @@ data = dskgato.read("test.dskgato")
 from tokamak.equilibrium import Equilibrium
 
 equil = Equilibrium(data)
+equil.setDensity(1e20) # Set a constant density
 
 #########################################
 # Get a single flux-surface (interpolating)
-# and calculate the connection length for it
+# and calculate the bootstrap current
 
 from tokamak import neoclass
+from numpy import linspace, zeros
 
-f = equil.getFluxSurface(0.8)   # Normalised psi = 0.8
+npoints = 20
 
-print neoclass.connectionLength(f)
+psi = linspace(0.5, 0.8, npoints, endpoint=True)
+bs = zeros(npoints)
+for i, p in enumerate(psi):
+    f = equil.getFluxSurface(p)
+    bs[i] = neoclass.bootstrapHS(f)
+    print p, bs[i]
 
-
-#########################################
-# Iterate over flux surfaces
-
-for f in equil.surfaces():
-    print neoclass.connectionLength(f)

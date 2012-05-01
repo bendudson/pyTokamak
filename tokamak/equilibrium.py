@@ -4,7 +4,9 @@
 #
 
 from numpy import size, copy, sqrt, linspace, pi, zeros
-from utils import integrate, interpPeriodic
+from utils import integrate, interpPeriodic, interp1d
+
+import species
 
 class FluxSurface:
     """ Describes a single flux surface 
@@ -181,7 +183,7 @@ class Equilibrium:
         
         if fix != None:
             # Check that fix has the required keys
-            required = ['npsi', 'npol', 'psi', 'f(psi)', 'R', 'Z', 'Bp']
+            required = ['npsi', 'npol', 'psi', 'f(psi)', 'p', 'R', 'Z', 'Bp']
             
             for r in required:
                 if not fix.has_key(r):
@@ -195,9 +197,33 @@ class Equilibrium:
             # Make a deep copy of the data so it can't be modified afterwards
             # in unpredictable ways
             self.fix = deepcopy(fix);
+            
+            # Create a function to return the pressure
+            self.pressure = interp1d(self.fix['psinorm'], self.fix['p'], copy=False)
+
+            # See if density, temperature profiles also set
+            if fix.has_key("ne"):
+                self.setDensity(self.fix["ne"])
         else:
             self.fix = None
+    
+    def ddpsi(self, f, dpsi=0.01):
+        """ Calculate psi derivative 
         
+        """
+        psi = self.fix['psi']
+        pnorm = psi[-1] - psi[0]  # normalised psi = psi / pnorm
+
+        def dfdpsi(psi):
+            fp = psi + dpsi
+            if fp > 1.0:
+                fp = 1.0
+            fm = psi - dpsi
+            if fp < 0.:
+                fp = 0.
+            return ( f(fp) - f(fm) ) / (fp - fm) / pnorm
+        return dfdpsi
+    
     def setDensity(self, dens, psi=None):
         """ Sets the density profile
         
@@ -238,7 +264,7 @@ class Equilibrium:
                 densfunc = lambda x: dens
                 
         # val should now contain a number
-        if len(val) > 1:
+        if size(val) > 1:
             raise ValueError("dens argument doesn't yield a single value")
         try:
             test = 2.*val + val*val        
@@ -291,7 +317,7 @@ class Equilibrium:
                 Tfunc = lambda x: T
                 
         # val should now contain a number
-        if len(val) > 1:
+        if size(val) > 1:
             raise ValueError("T argument doesn't yield a single value")
         try:
             test = 2.*val + val*val
@@ -321,7 +347,10 @@ class Equilibrium:
             ind = searchsorted(self.fix['psinorm'], psi)
             psiarr = self.fix['psinorm']
             
-            if (ind == 0) or (ind == self.fix['npsi']):
+            if ind == 0:
+                ind = 1
+                
+            if (ind == self.fix['npsi']):
                 raise ValueError("normalised psi value %e out of range %e to %e" % (psi, psiarr[0], psiarr[-1]))
             
             
@@ -344,8 +373,23 @@ class Equilibrium:
             Z = inter2d(self.fix['Z'])
             Bp = inter2d(self.fix['Bp'])
             
-            return FluxSurface(f, R, Z, Bp)
+            # Create the flux surface
+            f = FluxSurface(f, R, Z, Bp)
         
+            f.psinorm = psi
+
+            # Create some species
+            try:
+                # Try to get profiles
+                d = self.dens(psi)
+                T = self.temp(psi)
+                dndpsi = self.ddpsi(self.dens)(psi)
+                dTdpsi = self.ddpsi(self.temp)(psi)
+                f.species = species.genSpecies(T, d, AA=[None, 2], 
+                                               dTdpsi=dTdpsi, dndpsi=dndpsi)
+            except:
+                print "Warning: No species information"
+            return f
         # No data
         return None
     
@@ -379,7 +423,20 @@ class Equilibrium:
                     R = (self.fix['R'])[i,:]
                     Z = (self.fix['Z'])[i,:]
                     Bp = (self.fix['Bp'])[i,:]
-                    yield FluxSurface(f, R, Z, Bp)
+                    f = FluxSurface(f, R, Z, Bp)
+                    try:
+                        # Try to get profiles
+                        psi = (self.fix['psinorm'])[i]
+                        d = self.dens(psi)
+                        T = self.temp(psi)
+                        dndpsi = self.ddpsi(self.dens)(psi)
+                        dTdpsi = self.ddpsi(self.temp)(psi)
+                        f.species = species.genSpecies(T, d, AA=[None, 2], 
+                                                       dTdpsi=dTdpsi, dndpsi=dndpsi)
+                        f.psinorm = psi
+                    except:
+                        raise
+                    yield f
             
             return surfgen()
         

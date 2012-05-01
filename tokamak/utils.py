@@ -11,6 +11,8 @@
 #   
 #   f = interpPeriod( x, y, copy=True, period=2.*pi)  Return a callable object
 
+from math import exp
+
 try:
     # erf function available from Python 3.2
     from math import erf
@@ -81,7 +83,7 @@ except:
             self._yp = array(y, copy=copy)
         
         def __call__(self, x):
-           return interp(x, _xp, _yp)
+           return interp(x, self._xp, self._yp)
 
 
 from numpy import pi, copy, array, searchsorted, size, where

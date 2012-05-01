@@ -118,7 +118,7 @@ def friction(spec):
     
     For single ion species Deuterium plasma with Ti=Te, try
     
-    import neoclass
+    from tokamak import neoclass
     r = neoclass.friction(neoclass.genSpecies(1000, 1e19, AA=[None, 2]))
     
     """
@@ -178,10 +178,21 @@ def friction(spec):
                 rl22[i,j] += sum11[i]
             
     # Create a structure to hold the results
-    class Empty:
+    class FrictionData:
+        """ Neoclassical friction coefficients
+        
+        Members
+        -------
+        
+        rl11
+        rl12
+        rl21
+        rl22
+        
+        """
         pass
     
-    result = Empty()
+    result = FrictionData()
     result.rl11 = rl11
     result.rl21 = rl21
     result.rl12 = rl12
@@ -230,8 +241,15 @@ def trappedFraction(surf):
     except:
         pass # Just catch the error
     
+    try:
+        if surf.psinorm < 1e-2:
+            surf.trappedFraction = 0.
+            return 0.
+    except:
+        pass
+
     bigint =  integrate( lambda rla: 
-                         rla / surf.average( lambda x: sqrt(1. - rla*surf.B(x)) / surf.Bp(x) ),
+                         rla / surf.average( lambda x: sqrt(1. - rla*surf.B(x)) ),
                          0.0,   # Lower limit
                          1./surf.max(surf.B))  # Upper limit
     
@@ -348,10 +366,10 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
             for j, sj in enumerate(spec):
                 y    = vv * si.Vth / sj.Vth
                 
-                vdij = phig(y) / (coltau(i,j)*vv**3)
+                vdij = phig(y) / (coltau[i,j]*vv**3)
                 vd[i,n] += vdij
                 
-                vtij = (((erf(y) - 3.*chandrasekhar(y)) / vv**3) + 4.*(si.T/sj.T + (si.Vth/sj.Vth)**2)*chandrasekhar(y)/vv)/coltau(i,j)
+                vtij = (((erf(y) - 3.*chandrasekhar(y)) / vv**3) + 4.*(si.T/sj.T + (si.Vth/sj.Vth)**2)*chandrasekhar(y)/vv)/coltau[i,j]
                 vt[i,n] += vtij
             
             vd[i,n] *= 3.*sqrt(pi)/4.
@@ -371,6 +389,8 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
     rk11 = zeros(ns)
     rk12 = zeros(ns)
     rk22 = zeros(ns)
+
+    vis = zeros([ns, 3])
     
     for i, si in enumerate(spec):
         for n in range(nv):
@@ -384,13 +404,15 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
         rk12[i] *= ft*8./(3.*(1.-ft)*sqrt(pi))
         rk22[i] *= ft*8./(3.*(1.-ft)*sqrt(pi))
         
+        print "viscosity: ", rk11[i], rk12[i], rk22[i]
+        
         vis[i,0] = rk11[i]*si.density*si.mass
         vis[i,1] = (rk12[i] - 2.5*rk11[i])*si.density*si.mass
         vis[i,2] = (rk22[i] - 5.*rk12[i] + 6.25*rk11[i])*si.density*si.mass
         
     return vis
 
-def bootstrapHS(surf, spec):
+def bootstrapHS(surf, spec=None):
     """ Bootstrap current calculation using Hirshman-Sigmar formalism
     from Nucl. Fusion 21 (1981) 1079
     
@@ -415,12 +437,21 @@ def bootstrapHS(surf, spec):
 
     """
     
+    # If no species specified, get from surface
+    if spec == None:
+        try:
+            spec = surf.species
+        except:
+            raise ValueError("Must specify species information")
+    
     # Calculate viscosity components
     vis = viscosity(surf, spec)
 
     # Calculate friction coefficients
     fric = friction(spec)
     
+    ns = size(spec) # Number of species
+
     # Load matrices
     vvec = zeros(2*ns)
     tmat = zeros([2*ns, 2*ns])
@@ -461,10 +492,15 @@ def bootstrapHS(surf, spec):
                     tmat[i,j] = vis[i-ns,2]
     
     # Solve using LU decomposition (LAPACK routine) to get parallel velocity
-    upar = linalg.solve(rlmat + tmat, vvec)
+    try:
+        upar = linalg.solve(rlmat + tmat, vvec)
+    except:
+        return 0.
     
+    print "upar = ", upar
+
     # Sum contribution from all species
     bstrap = sum([ s.charge*s.density*upar[i] for i,s in enumerate(spec) ])
-    bstrap /= surf.Bsqav()
+    bstrap /= sqrt(surf.Bsqav())
     
     return bstrap
