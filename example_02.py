@@ -30,8 +30,10 @@ npoints = 20
 
 psi = linspace(0.5, 0.8, npoints, endpoint=True)
 bs = zeros(npoints)
+bs2 = zeros(npoints)
 for i, p in enumerate(psi):
     f = equil.getFluxSurface(p)
-    bs[i] = neoclass.bootstrapHS(f)
-    print p, bs[i]
+    bs2[i] = neoclass.bootstrapHS(f)
+    bs[i] = neoclass.bootstrapSimple(f)
+    print p, bs[i], bs2[i]
 

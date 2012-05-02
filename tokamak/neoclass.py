@@ -504,3 +504,81 @@ def bootstrapHS(surf, spec=None):
     bstrap /= sqrt(surf.Bsqav())
     
     return bstrap
+
+
+def bootstrapSimple(surf, spec=None):
+    """ Calculates the Bootstrap current in large aspect ratio, collisionless
+    approximation using formula 4.9.2 from Tokamaks 2nd Ed. by Wesson p. 173
+    """
+    if spec == None:
+        try:
+            spec = surf.species
+        except:
+            raise ValueError("Must specify species information")
+    
+    # Average Bp * R to convert between d/dpsi and d/dr
+    BpR = surf.average(lambda x: surf.Bp(x) * surf.R(x))
+    Bp = surf.average(surf.Bp)
+    
+    for s in spec:
+        dTdr = s.dTdpsi * BpR
+        
+        if s.atomicMass < 0.1:
+            # Electron
+            dTedr = dTdr
+            Te = s.T
+            
+            n = s.density
+            dndr = s.dndpsi * BpR
+        else:
+            # ion species
+            dTidr = dTdr
+            Ti = s.T
+            
+    Jb = 1.602e-19*(sqrt(surf.eps()) * n  / Bp) * ( 2.44*(Te + Ti)*dndr/n + 0.69*dTedr - 0.42*dTidr )
+    
+    return Jb
+
+def bootstrapWesson(surf, spec=None, trapfrac=None):
+    """ Bootstrap current calculation
+    spanning range of collisionality and aspect ratio
+    
+    From Tokamaks 2nd Ed by Wesson. Appendix 14.12 
+    """
+    if spec == None:
+        try:
+            spec = surf.species
+        except:
+            raise ValueError("Must specify species information")
+        
+    # Find which species is the electron and main ion species
+    eind = None
+    iind = None
+    for i, s in enumerate(species):
+        if s.atomicMass < 0.1:
+            eind = i
+            break
+        else:
+            if iind != None:
+                if s.density > species[iind].density:
+                    iind = i
+            else:
+                iind = i
+    if eind == None:
+        raise ValueError("No electron species given")
+    if iind == None:
+        raise ValueError("No ion species given")
+    
+    if trapfrac == None:
+        # Calculate trapped fraction
+        trapfrac = trappedFraction(surf)
+    x = trapfrac / (1 - trapfrac) # Ratio of trapped to circulating particles
+    
+    # Calculate collision frequencies
+    tau = collisionTimes(spec)
+    
+    
+    nu_e = sum(1./tau[0,:])
+    nu_i = sum(1./tau[1,:])
+        
+        

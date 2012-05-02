@@ -137,8 +137,11 @@ class FluxSurface:
         which returns the value as a function of poloidal angle
         
         """
-        
-        return self.integral(lambda x: var(x) / self.Bp(x)) / self.integral(lambda x: 1./self.Bp(x))
+        if not self.__dict__.has_key("_avintbp"):
+            # Cache this integral as used a lot
+            self._avintbp = self.integral(lambda x: 1./self.Bp(x))
+
+        return self.integral(lambda x: var(x) / self.Bp(x)) / self._avintbp
         
     ###### Useful functions
     
@@ -147,6 +150,19 @@ class FluxSurface:
         """
         return self.average(lambda x: self.B(x)**2)
     
+    def eps(self):
+        """ Calculate inverse aspect ratio r/R
+        """
+        
+        if self.__dict__.has_key("_eps"):
+            return self._eps
+        
+        Rav = self.average(self.R)
+        r = self.integral(lambda x: 1.0) / (2.*pi)
+        
+        self._eps = r/Rav
+        
+        return self._eps
 
 from copy import deepcopy
 from numpy import searchsorted
