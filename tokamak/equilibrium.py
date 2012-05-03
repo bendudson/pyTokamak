@@ -99,6 +99,18 @@ class FluxSurface:
         # Only sample at the grid points
         return max([var(theta) for theta in self._theta])
     
+    def min(self, var):
+        """ Maximum value of a variable over theta 
+        
+        Parameters
+        ----------
+        
+        var(theta) is a callable object
+        
+        """
+        # Only sample at the grid points
+        return min([var(theta) for theta in self._theta])
+
     def integral(self, var):
         """ Flux surface integral
         

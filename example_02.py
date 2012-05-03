@@ -17,7 +17,7 @@ data = dskgato.read("test.dskgato")
 from tokamak.equilibrium import Equilibrium
 
 equil = Equilibrium(data)
-equil.setDensity(1e20) # Set a constant density
+equil.setDensity(1e18) # Set a constant density
 
 #########################################
 # Get a single flux-surface (interpolating)
@@ -29,11 +29,15 @@ from numpy import linspace, zeros
 npoints = 20
 
 psi = linspace(0.5, 0.8, npoints, endpoint=True)
-bs = zeros(npoints)
-bs2 = zeros(npoints)
+bs_s = zeros(npoints)
+bs_w = zeros(npoints)
+bs_hs = zeros(npoints)
+
 for i, p in enumerate(psi):
     f = equil.getFluxSurface(p)
-    bs2[i] = neoclass.bootstrapHS(f)
-    bs[i] = neoclass.bootstrapSimple(f)
-    print p, bs[i], bs2[i]
+    bs_s[i] = neoclass.bootstrapSimple(f) * f.average(f.B)
+    bs_w[i] = neoclass.bootstrapWesson(f)
+    bs_hs[i] = neoclass.bootstrapHS(f)
+    print p, bs_s[i], bs_w[i], bs_hs[i]
+
 

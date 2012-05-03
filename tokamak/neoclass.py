@@ -90,7 +90,7 @@ def collisionTimes(spec):
         for j, sj in enumerate(spec):
             tau[i,j] = collisionTime(si, sj)
     return tau
-
+    
 def friction(spec):
     """ Calculate friction coefficients
     
@@ -412,6 +412,36 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
         
     return vis
 
+def collisionality(surf, spec=None):
+    """ Calculate collisionality for a collection of species 
+    on a flux surface.
+    
+    """
+    if spec == None:
+        try:
+            spec = surf.species
+        except:
+            raise ValueError("Must specify species information")
+        
+    # Get collision frequencies
+    tau = collisionTimes(spec)
+
+    ns = len(spec) # Number of species
+
+    # Calculate collision frequencies for each species 
+    nu = zeros(ns)
+    for i in range(ns):
+        nu[i] = sum(1./tau[i,:]) # Sum collision frequency with each species
+    
+    # Calculate banana bounce frequency
+    length = connectionLength(surf)
+    eps = surf.eps()
+    wb = zeros(ns)
+    for i in range(ns):
+        wb[i] = sqrt(2.*eps)*spec[i].Vth / length
+    
+    return nu / (eps * wb)
+
 def bootstrapHS(surf, spec=None):
     """ Bootstrap current calculation using Hirshman-Sigmar formalism
     from Nucl. Fusion 21 (1981) 1079
@@ -509,6 +539,14 @@ def bootstrapHS(surf, spec=None):
 def bootstrapSimple(surf, spec=None):
     """ Calculates the Bootstrap current in large aspect ratio, collisionless
     approximation using formula 4.9.2 from Tokamaks 2nd Ed. by Wesson p. 173
+    
+    Returns
+    -------
+
+    < Jb >
+    
+    note: no factor of B
+    
     """
     if spec == None:
         try:
@@ -539,15 +577,29 @@ def bootstrapSimple(surf, spec=None):
     
     return Jb
 
-def bootstrapWesson(surf, spec=None, trapfrac=None):
+def bootstrapWesson(surf, species=None, trapfrac=None):
     """ Bootstrap current calculation
     spanning range of collisionality and aspect ratio
     
     From Tokamaks 2nd Ed by Wesson. Appendix 14.12 
+    
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+    
+    < J . B > flux-surface averaged bootstrap current
+    
+    Raises
+    ------
+    
+    
     """
-    if spec == None:
+    if species == None:
         try:
-            spec = surf.species
+            species = surf.species
         except:
             raise ValueError("Must specify species information")
         
@@ -557,7 +609,6 @@ def bootstrapWesson(surf, spec=None, trapfrac=None):
     for i, s in enumerate(species):
         if s.atomicMass < 0.1:
             eind = i
-            break
         else:
             if iind != None:
                 if s.density > species[iind].density:
@@ -568,17 +619,46 @@ def bootstrapWesson(surf, spec=None, trapfrac=None):
         raise ValueError("No electron species given")
     if iind == None:
         raise ValueError("No ion species given")
+
+    # Get electron and ion temperatures in eV
+    Te = species[eind].T
+    Teprime = species[eind].dTdpsi
+    Ti = species[iind].T
+    Tiprime = species[iind].dTdpsi
+    
+    # Calculate pressures in Pascals and pressure gradients
+    charge = 1.602e-19
+    pe = charge * Te * species[eind].density
+    peprime = charge * (Te * species[eind].dndpsi + species[eind].dTdpsi * species[eind].density)
+    pi = charge * Ti * species[iind].density
+    piprime = charge * (Ti * species[iind].dndpsi + species[iind].dTdpsi * species[iind].density)
     
     if trapfrac == None:
         # Calculate trapped fraction
         trapfrac = trappedFraction(surf)
     x = trapfrac / (1 - trapfrac) # Ratio of trapped to circulating particles
     
-    # Calculate collision frequencies
-    tau = collisionTimes(spec)
+    # Get collisionalities
+    nustar = collisionality(surf)
     
+    nustar_e = nustar[eind] # Electron collisionality
+    nustar_i = nustar[iind] # Dominant ion species collisionality
+
+    eps = surf.eps() # Inverse aspect ratio
     
-    nu_e = sum(1./tau[0,:])
-    nu_i = sum(1./tau[1,:])
-        
-        
+    # Calculate coefficients
+    c1 = (4. + 2.6*x) / (  (1. + 1.02*sqrt(nustar_e) + 1.07*nustar_e)*(1. + 1.07*eps**1.5 * nustar_e)  )
+    
+    c2 = (Ti / Te) * c1
+    
+    c3 = (7. + 6.5*x) / (  (1. + 0.57*sqrt(nustar_e) + 0.61*nustar_e)*(1. + 0.61*eps**1.5*nustar_e)  )  - 2.5*c1
+    
+    d = -1.17 / (1. + 0.46*x)
+
+    c4 = (  (d + 0.35*sqrt(nustar_i))/(1.+0.7*sqrt(nustar_i)) + 2.1*eps**3*nustar_i**2  )* c2 / (1. - eps**3*nustar_i**2) / (1. + eps**3*nustar_e**2)
+
+    # Combine into expression for < J . B >
+    
+    Jb = ((surf.f * x * pe) / (2.4 + 5.4*x + 2.6*x**2)) * ( c1*peprime/pe + c2*piprime/pi + c3*Teprime/Te + c4*Tiprime/Ti )
+    
+    return Jb
