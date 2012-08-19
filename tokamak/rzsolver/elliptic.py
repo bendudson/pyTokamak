@@ -4,7 +4,8 @@
 
 try:
     from scipy.sparse import lil_matrix
-    from numpy import ones
+    from scipy.special import ellipk, ellipe
+    from numpy import ones, pi, sqrt, indices
 except:
     print("Couldn't load necessary libraries")
     raise
@@ -45,6 +46,18 @@ def matrix(R, Z):
     # Done. Convert to CSR format
     return A.tocsr()
 
+def greens(R, Z, Rc, Zc):
+    """
+    Greens function for the toroidal elliptic operator
+    
+    """
+    ksq = 4.*R*Rc / ( (R + Rc)**2 + (Z - Zc)**2 ) # k**2
+    k = sqrt(ksq)
+    
+    return sqrt(R*Rc) * ( (2. - ksq)*ellipk(k) - 2.*ellipe(k) ) / (2.*pi*k)
+
+
+
 if __name__ == "__main__":
     # Test case
     
@@ -69,20 +82,47 @@ if __name__ == "__main__":
     #b[indx(0, arange(nz))] = 1.
     #b[indx(nr-1, arange(nz))] = 1.
     
+    # Create 2D arrays of R and Z
+    xi,yi = indices([nr,nz])
+    r2d = r[xi]
+    z2d = z[yi]
+    
+    class Coil:
+        r = 1.
+        z = 0.
+        def __init__(self, R, Z):
+            self.r = R
+            self.z = Z
+        
+        def greens(self, geom):
+            pass
+
+    coil1 = Coil(2,  0.5)
+    coil2 = Coil(2, -0.5)
+
+    coilset = [coil1, coil2]
+
+    for coil in coilset:
+        # Calculate Greens function for this coil
+        g = greens(r2d, z2d, coil.r, coil.z)
+        coil.greens = g
+    
+    print coilset[0].greens
     
 
     # Direct solve sparse matrix
-    x = spsolve(A, b)
+    #x = spsolve(A, b)
     
     # View X as a 2D array
-    xv = x.view()
-    xv.shape = (nr, nz)
+    #xv = x.view()
+    #xv.shape = (nr, nz)
     
     # Make a filled contour plot
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
-    im = plt.imshow(transpose(xv), interpolation='bilinear', origin='lower',
-                    cmap=cm.hot, extent=(r[0],r[-1],z[0],z[-1]))
+    #im = plt.imshow(transpose(xv), interpolation='bilinear', origin='lower',
+    #                cmap=cm.hot, extent=(r[0],r[-1],z[0],z[-1]))
+    im = plt.contour(g)
     plt.colorbar()
     plt.show()
     
