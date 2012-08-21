@@ -2,6 +2,7 @@
 
 try:
     import re
+    from numpy import size
 except:
     print "Regular expression module 're' not available"
     raise
@@ -28,3 +29,20 @@ def file_numbers(fp):
         toklist = re.findall(pattern, line)
         for tok in toklist:
             yield tok
+
+def writef(fp, val):
+    """ Write values to a file in Fortran style
+    
+    """
+    if size(val) == 1:
+        fp.write("%16.9E" % val)
+        return
+    
+    line = 0
+    for v in val:
+        fp.write("%16.9E" % v)
+        line += 1
+        if line == 5:
+            fp.write("\n");
+    if line != 5:
+        fp.write("\n");
