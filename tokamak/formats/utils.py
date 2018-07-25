@@ -4,7 +4,7 @@ try:
     import re
     from numpy import size
 except:
-    print "Regular expression module 're' not available"
+    print("Regular expression module 're' not available")
     raise
 
 def file_tokens(fp):

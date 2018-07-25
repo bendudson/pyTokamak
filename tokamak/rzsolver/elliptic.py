@@ -106,9 +106,8 @@ if __name__ == "__main__":
         # Calculate Greens function for this coil
         g = greens(r2d, z2d, coil.r, coil.z)
         coil.greens = g
-    
-    print coilset[0].greens
-    
+
+    print(coilset[0].greens)
 
     # Direct solve sparse matrix
     #x = spsolve(A, b)

@@ -128,7 +128,7 @@ def read(f):
 
     if isym == 1:
         # Fill in values for up-down symmetric case
-        print "Grid is up-down symmetric. Reflecting grid about midplane"
+        print("Grid is up-down symmetric. Reflecting grid about midplane")
         ny = tsize = 2*(ntheta - 1) + 1
     
         def reflect(data, mapfunc = lambda x:x):
