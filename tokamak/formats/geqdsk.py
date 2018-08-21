@@ -9,6 +9,11 @@ Format of G-EQDSK file is specified here:
 import numpy as np
 from .utils import file_numbers, writef
 
+try:
+  basestring
+except NameError:
+  basestring = str
+
 def read(f):
     """ Reads a G-EQDSK file
 
@@ -45,36 +50,64 @@ def read(f):
     # Use a generator to read numbers
     token = file_numbers(f)
 
-    xdim   = float(token.next())
-    zdim   = float(token.next())
-    rcentr = float(token.next())
-    rgrid1 = float(token.next())
-    zmid   = float(token.next())
+    try:
+        xdim   = float(token.next())
+        zdim   = float(token.next())
+        rcentr = float(token.next())
+        rgrid1 = float(token.next())
+        zmid   = float(token.next())
 
-    rmagx  = float(token.next())
-    zmagx  = float(token.next())
-    simagx = float(token.next())
-    sibdry = float(token.next())
-    bcentr = float(token.next())
+        rmagx  = float(token.next())
+        zmagx  = float(token.next())
+        simagx = float(token.next())
+        sibdry = float(token.next())
+        bcentr = float(token.next())
 
-    cpasma = float(token.next())
-    simagx = float(token.next())
-    xdum   = float(token.next())
-    rmagx  = float(token.next())
-    xdum   = float(token.next())
+        cpasma = float(token.next())
+        simagx = float(token.next())
+        xdum   = float(token.next())
+        rmagx  = float(token.next())
+        xdum   = float(token.next())
 
-    zmagx  = float(token.next())
-    xdum   = float(token.next())
-    sibdry = float(token.next())
-    xdum   = float(token.next())
-    xdum   = float(token.next())
+        zmagx  = float(token.next())
+        xdum   = float(token.next())
+        sibdry = float(token.next())
+        xdum   = float(token.next())
+        xdum   = float(token.next())
+    except:
+        xdim = float(next(token))
+        zdim = float(next(token))
+        rcentr = float(next(token))
+        rgrid1 = float(next(token))
+        zmid = float(next(token))
+
+        rmagx = float(next(token))
+        zmagx = float(next(token))
+        simagx = float(next(token))
+        sibdry = float(next(token))
+        bcentr = float(next(token))
+
+        cpasma = float(next(token))
+        simagx = float(next(token))
+        xdum = float(next(token))
+        rmagx = float(next(token))
+        xdum = float(next(token))
+
+        zmagx = float(next(token))
+        xdum = float(next(token))
+        sibdry = float(next(token))
+        xdum = float(next(token))
+        xdum = float(next(token))
 
     # Read arrays
     def read_array(n, name="Unknown"):
         data = np.zeros([n])
         try:
             for i in np.arange(n):
-                data[i] = float(token.next())
+                try:
+                    data[i] = float(token.next())
+                except:
+                    data[i] = float(next(token))
         except:
             raise IOError("Failed reading array '"+name+"' of size ", n)
         return data
@@ -93,15 +126,23 @@ def read(f):
     qpsi   = read_array(nxefit, "qpsi")
 
     # Read boundary and limiters, if present
-    nbdry = int(token.next())
-    nlim  = int(token.next())
+    try:
+        nbdry = int(token.next())
+        nlim  = int(token.next())
+    except:
+        nbdry = int(next(token))
+        nlim = int(next(token))
 
     if nbdry > 0:
         rbdry = np.zeros([nbdry])
         zbdry = np.zeros([nbdry])
         for i in range(nbdry):
-            rbdry[i] = float(token.next())
-            zbdry[i] = float(token.next())
+            try:
+                rbdry[i] = float(token.next())
+                zbdry[i] = float(token.next())
+            except:
+                rbdry[i] = float(next(token))
+                zbdry[i] = float(next(token))
     else:
         rbdry = [0]
         zbdry = [0]
@@ -110,8 +151,12 @@ def read(f):
         xlim = np.zeros([nlim])
         ylim = np.zeros([nlim])
         for i in range(nlim):
-            xlim[i] = float(token.next())
-            ylim[i] = float(token.next())
+            try:
+                xlim[i] = float(token.next())
+                ylim[i] = float(token.next())
+            except:
+                xlim[i] = float(next(token))
+                ylim[i] = float(next(token))
     else:
         xlim = [0]
         ylim = [0]
