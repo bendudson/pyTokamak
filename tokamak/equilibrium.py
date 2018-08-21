@@ -416,7 +416,7 @@ class Equilibrium:
                 f.species = species.genSpecies(T, d, AA=[None, 2], 
                                                dTdpsi=dTdpsi, dndpsi=dndpsi)
             except:
-                print "Warning: No species information"
+                print("Warning: No species information")
             return f
         # No data
         return None

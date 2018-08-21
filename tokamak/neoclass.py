@@ -403,9 +403,9 @@ def viscosity(surf, spec, vmax=5., nv=500, colldamping=0.):
         rk11[i] *= ft*8./(3.*(1.-ft)*sqrt(pi))
         rk12[i] *= ft*8./(3.*(1.-ft)*sqrt(pi))
         rk22[i] *= ft*8./(3.*(1.-ft)*sqrt(pi))
-        
-        print "viscosity: ", rk11[i], rk12[i], rk22[i]
-        
+
+        print("viscosity: ", rk11[i], rk12[i], rk22[i])
+
         vis[i,0] = rk11[i]*si.density*si.mass
         vis[i,1] = (rk12[i] - 2.5*rk11[i])*si.density*si.mass
         vis[i,2] = (rk22[i] - 5.*rk12[i] + 6.25*rk11[i])*si.density*si.mass
@@ -526,8 +526,8 @@ def bootstrapHS(surf, spec=None):
         upar = linalg.solve(rlmat + tmat, vvec)
     except:
         return 0.
-    
-    print "upar = ", upar
+
+    print("upar = ", upar)
 
     # Sum contribution from all species
     bstrap = sum([ s.charge*s.density*upar[i] for i,s in enumerate(spec) ])

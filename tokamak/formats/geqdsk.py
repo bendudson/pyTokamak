@@ -1,50 +1,50 @@
 """
 Read and write 'G' formatted equilibria. This is an R-Z free boundary
-format. 
+format.
 
 Format of G-EQDSK file is specified here:
   https://fusion.gat.com/THEORY/efit/g_eqdsk.html
 """
 
 import numpy as np
-from utils import file_numbers, writef
+from .utils import file_numbers, writef
 
 def read(f):
     """ Reads a G-EQDSK file
-    
+
     Parameters
     ----------
-    
+
     f = Input file. Can either be a file-like object,
         or a string. If a string, then treated as a file name
         and opened.
-        
+
     Returns
     -------
-    
+
     """
-    
+
     if isinstance(f, basestring):
         # If the input is a string, treat as file name
         with open(f) as fh: # Ensure file is closed
             return read(fh) # Call again with file object
-    
+
     # Read the first line, which should contain the mesh sizes
     desc = f.readline()
     if not desc:
         raise IOError("Cannot read from input file")
-    
+
     s = desc.split() # Split by whitespace
     if len(s) < 3:
         raise IOError("First line must contain at least 3 numbers")
-    
+
     idum = int(s[-3])
     nxefit = int(s[-2])
     nyefit = int(s[-1])
-    
+
     # Use a generator to read numbers
     token = file_numbers(f)
-    
+
     xdim   = float(token.next())
     zdim   = float(token.next())
     rcentr = float(token.next())
@@ -56,7 +56,7 @@ def read(f):
     simagx = float(token.next())
     sibdry = float(token.next())
     bcentr = float(token.next())
-    
+
     cpasma = float(token.next())
     simagx = float(token.next())
     xdum   = float(token.next())
@@ -68,7 +68,7 @@ def read(f):
     sibdry = float(token.next())
     xdum   = float(token.next())
     xdum   = float(token.next())
-    
+
     # Read arrays
     def read_array(n, name="Unknown"):
         data = np.zeros([n])
@@ -78,24 +78,24 @@ def read(f):
         except:
             raise IOError("Failed reading array '"+name+"' of size ", n)
         return data
-    
+
     def read_2d(nx, ny, name="Unknown"):
         data = np.zeros([nx, ny])
         for i in np.arange(nx):
             data[i,:] = read_array(ny, name+"["+str(i)+"]")
         return data
-    
+
     fpol   = read_array(nxefit, "fpol")
     pres   = read_array(nxefit, "pres")
     workk1 = read_array(nxefit, "workk1")
     workk2 = read_array(nxefit, "workk2")
     psi    = read_2d(nxefit, nyefit, "psi")
     qpsi   = read_array(nxefit, "qpsi")
-    
+
     # Read boundary and limiters, if present
     nbdry = int(token.next())
     nlim  = int(token.next())
-    
+
     if nbdry > 0:
         rbdry = np.zeros([nbdry])
         zbdry = np.zeros([nbdry])
@@ -105,7 +105,7 @@ def read(f):
     else:
         rbdry = [0]
         zbdry = [0]
-    
+
     if nlim > 0:
         xlim = np.zeros([nlim])
         ylim = np.zeros([nlim])
@@ -124,7 +124,7 @@ def read(f):
     for j in range(nyefit):
         z[:,j] = (zmid-0.5*zdim) + zdim*j/float(nyefit-1)
 
-    # Create dictionary of values to return 
+    # Create dictionary of values to return
     result = {'nx': nxefit, 'ny':nyefit,        # Number of horizontal and vertical points
               'r':r, 'z':z,                     # Location of the grid-poinst
               'rdim':xdim, 'zdim':zdim,         # Size of the domain in meters
@@ -134,26 +134,26 @@ def read(f):
               'rmagx':rmagx, 'zmagx':zmagx,     # Location of magnetic axis
               'simagx':simagx, # Poloidal flux at the axis (Weber / rad)
               'sibdry':sibdry, # Poloidal flux at plasma boundary (Weber / rad)
-              'cpasma':cpasma, 
+              'cpasma':cpasma,
               'psi':psi,    # Poloidal flux in Weber/rad on grid points
               'fpol':fpol,  # Poloidal current function on uniform flux grid
               'pressure':pres,  # Plasma pressure in nt/m^2 on uniform flux grid
               'qpsi':qpsi,  # q values on uniform flux grid
               'nbdry':nbdry, 'rbdry':rbdry, 'zbdry':zbdry, # Plasma boundary
               'nlim':nlim, 'xlim':xlim, 'ylim':ylim} # Wall boundary
-    
+
     return result
 
 def write(f, data):
     """ Write a G-EQDSK file
-    
+
     """
-    
+
     if isinstance(f, basestring):
         # If the input is a string, treat as file name
         with open(f, "w") as fh: # Ensure file is closed
             return write(fh, data) # Call again with file object
-    
+
     nx = int(data['nx'])
     ny = int(data['ny'])
 
@@ -165,25 +165,25 @@ def write(f, data):
     writef(f, data['rcentr'])
     writef(f, data['rgrid1'])
     writef(f, data['zmid'])
-    
+
     writef(f, data['rmagx'])
     writef(f, data['zmagx'])
     writef(f, data['simagx'])
     writef(f, data['sibdry'])
     writef(f, data['bcentr'])
-    
+
     writef(f, data['cpasma'])
     writef(f, data['simagx'])
     writef(f, 0.0)
     writef(f, data['rmagx'])
     writef(f, 0.0)
-    
+
     writef(f, data['zmagx'])
     writef(f, 0.0)
     writef(f, data['sibdry'])
     writef(f, 0.0)
     writef(f, 0.0)
-    
+
     # Write the arrays
     writef(f, data['fpol'])
     writef(f, data['pressure'])
@@ -191,4 +191,3 @@ def write(f, data):
     writef(f, np.zeros(nx))  # Workk2
     writef(f, data['psi'])
     writef(f, data['qpsi'])
-    

@@ -8,7 +8,7 @@
 
 from tokamak.formats import dskgato
 
-print "Reading DSKGATO input file"
+print("Reading DSKGATO input file")
 data = dskgato.read("test.dskgato")
 
 #########################################
@@ -38,6 +38,6 @@ for i, p in enumerate(psi):
     bs_s[i] = neoclass.bootstrapSimple(f) * f.average(f.B)
     bs_w[i] = neoclass.bootstrapWesson(f)
     bs_hs[i] = neoclass.bootstrapHS(f)
-    print p, bs_s[i], bs_w[i], bs_hs[i]
+    print(p, bs_s[i], bs_w[i], bs_hs[i])
 
 
