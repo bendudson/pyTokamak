@@ -25,17 +25,16 @@ f = FluxSurface(Rmaj*Bt0, r, z, Bp)
 q = Bt0*amin / (Bp0 * Rmaj) # Large aspect-ratio approximation
 eps = amin / Rmaj
 
-print "Inverse aspect ratio eps = ", eps
+print("Inverse aspect ratio eps = ", eps)
 
+print("")
+print("Large aspect ratio q = ", q)
+print("q = ", f.integral(lambda x: f.Bt(x) / (f.Bp(x) * f.R(x))) / (2 * pi))
 
-print ""
-print "Large aspect ratio q = ", q
-print "q = ", f.integral( lambda x: f.Bt(x) / ( f.Bp(x) * f.R(x) ) ) / (2*pi)
+print("")
+print("Large aspect ratio qR = ", q * Rmaj)
+print("Connection length = ", neoclass.connectionLength(f))
 
-print ""
-print "Large aspect ratio qR = ", q*Rmaj
-print "Connection length = ", neoclass.connectionLength(f)
-
-print ""
-print "Large aspect-ratio trapped = ", 1.46*sqrt(eps)
-print "Trapped fraction  = ", neoclass.trappedFraction(f)
+print("")
+print("Large aspect-ratio trapped = ", 1.46 * sqrt(eps))
+print("Trapped fraction  = ", neoclass.trappedFraction(f))
